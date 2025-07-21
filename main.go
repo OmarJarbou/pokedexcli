@@ -3,10 +3,31 @@ package main
 import ( 
 	"fmt"
 	"strings"
+	"bufio"
+	"os"
 )
 
 func main() {
-	fmt.Println("Hello, World!")
+	scanner := bufio.NewScanner(os.Stdin) 
+	
+	for programStartingREPL(scanner) {
+		var inputString string
+		var inputWords [] string
+		
+		inputString = scanner.Text() // get the line we read as a string
+
+		inputWords = cleanInput(inputString)
+
+		fmt.Println("Your command was: " + inputWords[0])
+	}
+	if err := scanner.Err(); err != nil { // if err occured during scanning
+		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
+	}
+}
+
+func programStartingREPL(scanner *bufio.Scanner) bool {
+	fmt.Print("Pokedex > ")
+	return scanner.Scan() // scan based on the rules of "scanner": read a line
 }
 
 func cleanInput(text string) []string {
