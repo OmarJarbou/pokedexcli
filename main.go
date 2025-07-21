@@ -8,6 +8,12 @@ import (
 )
 
 func main() {
+	initURL := "https://pokeapi.co/api/v2/location-area?offset=0&limit=20"
+	config := Config{
+		Next: &initURL,
+		Previous: nil,
+	}
+	commands := Commands(&config)
 	scanner := bufio.NewScanner(os.Stdin) 
 	
 	for programStartingREPL(scanner) {
@@ -18,7 +24,14 @@ func main() {
 
 		inputWords = cleanInput(inputString)
 
-		fmt.Println("Your command was: " + inputWords[0])
+		// fmt.Println("Your command was: " + inputWords[0])
+
+		command, ok := commands[inputWords[0]]
+		if !ok {
+			fmt.Println("Unknown command")
+			continue
+		}
+		command.callback(&config)
 	}
 	if err := scanner.Err(); err != nil { // if err occured during scanning
 		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
