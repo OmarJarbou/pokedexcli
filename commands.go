@@ -5,12 +5,14 @@ import (
 	"os"
 	"net/http"
 	"encoding/json"
+	"github.com/OmarJarbou/pokedexcli/internal/pokecache"
+	"io"
 )
 
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*Config) error
+	callback    func(*Config, *pokecache.Cache) error
 }
 
 func Commands(config *Config) map[string]cliCommand {
@@ -38,13 +40,13 @@ func Commands(config *Config) map[string]cliCommand {
 	}
 }
 
-func commandExit(config *Config) error {
+func commandExit(config *Config, cache *pokecache.Cache) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(config *Config) error {
+func commandHelp(config *Config, cache *pokecache.Cache) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println()
@@ -54,33 +56,47 @@ func commandHelp(config *Config) error {
 	return nil
 }
 
-func commandMap(config *Config) error {
+func commandMap(config *Config, cache *pokecache.Cache) error {
 	if config.Next == nil {
 		fmt.Println("you're on the last page")
 		return nil
 	}
-	return fetchingLocationAreaMap(*(config.Next), config)
+	return fetchingLocationAreaMap(*(config.Next), config, cache)
 }
 
-func commandMapb(config *Config) error {
+func commandMapb(config *Config, cache *pokecache.Cache) error {
 	if config.Previous == nil {
 		fmt.Println("you're on the first page")
 		return nil
 	}
-	return fetchingLocationAreaMap(*(config.Previous), config)
+	return fetchingLocationAreaMap(*(config.Previous), config, cache)
 }
 
-func fetchingLocationAreaMap(url string, config *Config) error {
-	res, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("error fetching location areas map: %w", err)
-	}
-
+func fetchingLocationAreaMap(url string, config *Config, cache *pokecache.Cache) error {
 	var locationAreaMap LocationAreaMap
-	if err := json.NewDecoder(res.Body).Decode(&locationAreaMap); err != nil {
-		return fmt.Errorf("error decoding location areas json data: %w", err)
+
+	var Response []byte
+	cachedRes, ok := cache.Get(url)
+	if !ok {
+		res, err := http.Get(url)
+		if err != nil {
+			return fmt.Errorf("error fetching location areas map: %w", err)
+		}
+		Response, err = io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("error reading location areas json data from response: %w", err)
+		}
+		cache.Add(url, Response)
+		fmt.Println("DATA FETCHED FROM INTERNET")
+	} else {
+		Response = cachedRes
+		fmt.Println("DATA FOUND IN THE CACHE")
 	}
 
+	if err := json.Unmarshal(Response, &locationAreaMap); err != nil {
+		return fmt.Errorf("error parsing location areas json-encoded data: %w", err)
+	}
+	
 	for _, locationArea := range locationAreaMap.Results {
 		fmt.Println(locationArea.Name)
 	}

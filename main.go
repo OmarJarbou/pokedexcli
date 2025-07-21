@@ -5,6 +5,8 @@ import (
 	"strings"
 	"bufio"
 	"os"
+	"github.com/OmarJarbou/pokedexcli/internal/pokecache"
+	"time"
 )
 
 func main() {
@@ -14,6 +16,10 @@ func main() {
 		Previous: nil,
 	}
 	commands := Commands(&config)
+
+	var cache *pokecache.Cache
+	cache = pokecache.NewCache(5 * time.Second)
+
 	scanner := bufio.NewScanner(os.Stdin) 
 	
 	for programStartingREPL(scanner) {
@@ -31,7 +37,7 @@ func main() {
 			fmt.Println("Unknown command")
 			continue
 		}
-		command.callback(&config)
+		command.callback(&config, cache)
 	}
 	if err := scanner.Err(); err != nil { // if err occured during scanning
 		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
