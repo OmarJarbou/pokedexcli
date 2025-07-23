@@ -8,6 +8,7 @@ import (
 	"github.com/OmarJarbou/pokedexcli/internal/pokecache"
 	"io"
 	"math/rand"
+	"strconv"
 )
 
 type cliCommand struct {
@@ -38,6 +39,11 @@ func Commands(config *Config) map[string]cliCommand {
 			description: "Catches a Pokemon and adds it to the user's Pokedex",
 			callback:    commandCatch,
 		},
+		"inspect": {
+			name:        "inspect",
+			description: "Shows details about only a caught Pokemon",
+			callback:    commandInspect,
+		},
 		"help": {
 			name:        "help",
 			description: "Displays a help message",
@@ -54,7 +60,7 @@ func Commands(config *Config) map[string]cliCommand {
 func commandExit(config *Config, cache *pokecache.Cache, commandWords []string, pokedex *Pokedex) error {
 	if len(commandWords) != 1 {
 		foundArguments := len(commandWords) - 1
-		fmt.Println("Expected 0 arguments, but found " + string(foundArguments))
+		fmt.Println("Expected 0 arguments, but found " + strconv.Itoa(foundArguments))
 		return nil
 	}
 	fmt.Println("Closing the Pokedex... Goodbye!")
@@ -65,7 +71,7 @@ func commandExit(config *Config, cache *pokecache.Cache, commandWords []string, 
 func commandHelp(config *Config, cache *pokecache.Cache, commandWords []string, pokedex *Pokedex) error {
 	if len(commandWords) != 1 {
 		foundArguments := len(commandWords) - 1
-		fmt.Println("Expected 0 arguments, but found " + string(foundArguments))
+		fmt.Println("Expected 0 arguments, but found " + strconv.Itoa(foundArguments))
 		return nil
 	}
 	fmt.Println("Welcome to the Pokedex!")
@@ -80,7 +86,7 @@ func commandHelp(config *Config, cache *pokecache.Cache, commandWords []string, 
 func commandMap(config *Config, cache *pokecache.Cache, commandWords []string, pokedex *Pokedex) error {
 	if len(commandWords) != 1 {
 		foundArguments := len(commandWords) - 1
-		fmt.Println("Expected 0 arguments, but found " + string(foundArguments))
+		fmt.Println("Expected 0 arguments, but found " + strconv.Itoa(foundArguments))
 		return nil
 	}
 	if config.Next == nil {
@@ -93,7 +99,7 @@ func commandMap(config *Config, cache *pokecache.Cache, commandWords []string, p
 func commandMapb(config *Config, cache *pokecache.Cache, commandWords []string, pokedex *Pokedex) error {
 	if len(commandWords) != 1 {
 		foundArguments := len(commandWords) - 1
-		fmt.Println("Expected 0 arguments, but found " + string(foundArguments))
+		fmt.Println("Expected 0 arguments, but found " + strconv.Itoa(foundArguments))
 		return nil
 	}
 	if config.Previous == nil {
@@ -148,7 +154,7 @@ func fetchingLocationAreaMap(url string, config *Config, cache *pokecache.Cache)
 func commandExplore(config *Config, cache *pokecache.Cache, commandWords []string, pokedex *Pokedex) error {
 	if len(commandWords) != 2 {
 		foundArguments := len(commandWords) - 1
-		fmt.Println("Expected 1 argument, but found " + string(foundArguments))
+		fmt.Println("Expected 1 argument, but found " + strconv.Itoa(foundArguments))
 		return nil
 	}
 	fmt.Println("Exploring " + commandWords[1] + "...")
@@ -193,36 +199,16 @@ func commandExplore(config *Config, cache *pokecache.Cache, commandWords []strin
 func commandCatch(config *Config, cache *pokecache.Cache, commandWords []string, pokedex *Pokedex) error {
 	if len(commandWords) != 2 {
 		foundArguments := len(commandWords) - 1
-		fmt.Println("Expected 1 argument, but found " + string(foundArguments))
+		fmt.Println("Expected 1 argument, but found " + strconv.Itoa(foundArguments))
 		return nil
 	}
 	fmt.Println("Throwing a Pokeball at " + commandWords[1] + "...")
 
 	fullURL := "https://pokeapi.co/api/v2/pokemon/" + commandWords[1] + "/"
 
-	var Response []byte
-	cachedData, ok := cache.Get(fullURL)
-	if !ok {
-		res, err := http.Get(fullURL)
-		if err != nil {
-			return fmt.Errorf("error fetching this pokemon's data: %w", err)
-		}
-
-		Response, err = io.ReadAll(res.Body)
-		if err != nil {
-			return fmt.Errorf("error reading pokemons's json data from response: %w", err)
-		}
-
-		cache.Add(fullURL, Response)
-		fmt.Println("DATA FETCHED FROM INTERNET")
-	} else {
-		Response = cachedData
-		fmt.Println("DATA FOUND IN THE CACHE")
-	}
-
-	var pokemon Pokemon
-	if err := json.Unmarshal(Response, &pokemon); err != nil {
-		return fmt.Errorf("error parsing this pokemon's json-encoded data: %w", err)
+	pokemon, err := fetchPokemon(fullURL, cache)
+	if err != nil {
+		return err
 	}
 
 	// pokemon.BaseExperience
@@ -235,4 +221,75 @@ func commandCatch(config *Config, cache *pokecache.Cache, commandWords []string,
 	}
 
 	return nil
+}
+
+func commandInspect(config *Config, cache *pokecache.Cache, commandWords []string, pokedex *Pokedex) error {
+	if len(commandWords) != 2 {
+		foundArguments := len(commandWords) - 1
+		fmt.Println("Expected 1 argument, but found " + strconv.Itoa(foundArguments))
+		return nil
+	}
+
+	found := false
+	for _, poke := range pokedex.Items {
+		if poke.Name == commandWords[1] {
+			found = true
+			break
+		}
+	} 
+	if !found {
+		fmt.Println("you have not caught that pokemon")
+		return nil
+	}
+
+	fullURL := "https://pokeapi.co/api/v2/pokemon/" + commandWords[1] + "/"
+
+	pokemon, err := fetchPokemon(fullURL, cache)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Name: " + pokemon.Name)
+	fmt.Println("Height: " + strconv.Itoa(pokemon.Height))
+	fmt.Println("Weight: " + strconv.Itoa(pokemon.Weight))
+	fmt.Println("Stats:")
+	for _, item := range pokemon.Stats {
+		fmt.Println("  -" + item.Stat.Name + ": " + strconv.Itoa(item.BaseStat))
+	}
+	fmt.Println("Types:")
+	for _, item := range pokemon.Types {
+		fmt.Println("  -" + item.Type.Name)
+	}
+
+	return nil
+}
+
+func fetchPokemon(fullURL string, cache *pokecache.Cache) (Pokemon, error) {
+	var pokemon Pokemon
+
+	var Response []byte
+	cachedData, ok := cache.Get(fullURL)
+	if !ok {
+		res, err := http.Get(fullURL)
+		if err != nil {
+			return pokemon, fmt.Errorf("error fetching this pokemon's data: %w", err)
+		}
+
+		Response, err = io.ReadAll(res.Body)
+		if err != nil {
+			return pokemon, fmt.Errorf("error reading pokemons's json data from response: %w", err)
+		}
+
+		cache.Add(fullURL, Response)
+		fmt.Println("DATA FETCHED FROM INTERNET")
+	} else {
+		Response = cachedData
+		fmt.Println("DATA FOUND IN THE CACHE")
+	}
+	
+	if err := json.Unmarshal(Response, &pokemon); err != nil {
+		return pokemon, fmt.Errorf("error parsing this pokemon's json-encoded data: %w", err)
+	}
+
+	return pokemon, nil
 }
