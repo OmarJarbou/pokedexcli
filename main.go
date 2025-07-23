@@ -20,6 +20,10 @@ func main() {
 	var cache *pokecache.Cache
 	cache = pokecache.NewCache(5 * time.Second)
 
+	pokedex := Pokedex{
+		Items: make(map[string]Pokemon),
+	}
+
 	scanner := bufio.NewScanner(os.Stdin) 
 	
 	for programStartingREPL(scanner) {
@@ -37,7 +41,7 @@ func main() {
 			fmt.Println("Unknown command")
 			continue
 		}
-		command.callback(&config, cache, inputWords)
+		command.callback(&config, cache, inputWords, &pokedex)
 	}
 	if err := scanner.Err(); err != nil { // if err occured during scanning
 		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
