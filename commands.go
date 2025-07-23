@@ -44,6 +44,11 @@ func Commands(config *Config) map[string]cliCommand {
 			description: "Shows details about only a caught Pokemon",
 			callback:    commandInspect,
 		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "Prints a list of all the names of the Pokemon the user has caught",
+			callback:    commandPokedex,
+		},
 		"help": {
 			name:        "help",
 			description: "Displays a help message",
@@ -214,10 +219,10 @@ func commandCatch(config *Config, cache *pokecache.Cache, commandWords []string,
 	// pokemon.BaseExperience
 	randomNumber := rand.Intn(400)
 	if randomNumber > pokemon.BaseExperience {
-		fmt.Println("pikachu was caught!")
+		fmt.Println(commandWords[1] + " was caught!")
 		pokedex.Add(pokemon)
 	} else {
-		fmt.Println("pikachu escaped!")
+		fmt.Println(commandWords[1] + " escaped!")
 	}
 
 	return nil
@@ -292,4 +297,24 @@ func fetchPokemon(fullURL string, cache *pokecache.Cache) (Pokemon, error) {
 	}
 
 	return pokemon, nil
+}
+
+func commandPokedex(config *Config, cache *pokecache.Cache, commandWords []string, pokedex *Pokedex) error {
+	if len(commandWords) != 1 {
+		foundArguments := len(commandWords) - 1
+		fmt.Println("Expected 0 arguments, but found " + strconv.Itoa(foundArguments))
+		return nil
+	}
+
+	if len(pokedex.Items) == 0 {
+		fmt.Println("Your Pokedex is empty!")
+		return nil
+	}
+
+	fmt.Println("Your Pokedex:")
+	for _, pokemon := range pokedex.Items {
+		fmt.Println(" - " + pokemon.Name)
+	} 
+
+	return nil
 }
