@@ -37,7 +37,7 @@ func main() {
 			fmt.Println("Unknown command")
 			continue
 		}
-		command.callback(&config, cache)
+		command.callback(&config, cache, inputWords)
 	}
 	if err := scanner.Err(); err != nil { // if err occured during scanning
 		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
